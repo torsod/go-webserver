@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PDP WebSocket Client</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: monospace; background: #1a1a1a; color: #e0e0e0; padding: 20px; }
+        h1 { color: #00ccff; margin-bottom: 5px; }
+        .subtitle { color: #888; margin-bottom: 20px; font-size: 0.85em; }
+        .status { padding: 8px 16px; border-radius: 4px; margin-bottom: 20px; display: inline-block; }
+        .connected { background: #1b4332; color: #4caf50; }
+        .disconnected { background: #3d1c1c; color: #f44336; }
+        .controls { display: flex; gap: 10px; margin-bottom: 20px; align-items: center; }
+        button { background: #2d2d2d; color: #00ccff; border: 1px solid #404040; padding: 8px 16px; cursor: pointer; border-radius: 4px; font-family: monospace; }
+        button:hover { background: #404040; }
+        select { background: #2d2d2d; color: #e0e0e0; border: 1px solid #404040; padding: 8px; font-family: monospace; border-radius: 4px; }
+        .panels { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        .panel { background: #2d2d2d; border-radius: 8px; padding: 15px; }
+        .panel h2 { color: #00ccff; font-size: 0.9em; margin-bottom: 10px; text-transform: uppercase; letter-spacing: 1px; }
+        .log { max-height: 400px; overflow-y: auto; font-size: 0.8em; line-height: 1.5; }
+        .log-entry { padding: 2px 0; border-bottom: 1px solid #3a3a3a; }
+        .log-entry .time { color: #666; }
+        .log-entry .type { color: #00ccff; font-weight: bold; }
+        table { width: 100%; border-collapse: collapse; font-size: 0.85em; }
+        th { text-align: left; color: #00ccff; padding: 4px 8px; border-bottom: 1px solid #404040; }
+        td { padding: 4px 8px; border-bottom: 1px solid #3a3a3a; }
+        .bid { color: #4caf50; }
+        .offer { color: #f44336; }
+        .metric { display: flex; justify-content: space-between; padding: 4px 0; }
+        .metric .label { color: #888; }
+        .metric .value { color: #00ccff; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <h1>PDP WebSocket Client</h1>
+    <p class="subtitle">Real-time orderbook and offering updates</p>
+
+    <div id="status" class="status disconnected">Disconnected</div>
+
+    <div class="controls">
+        <button onclick="connect()">Connect</button>
+        <button onclick="disconnect()">Disconnect</button>
+        <button onclick="fetchSnapshot()">Fetch Snapshot</button>
+        <select id="symbolSelect" onchange="selectSymbol()">
+            <option value="">Select Symbol...</option>
+        </select>
+    </div>
+
+    <div class="panels">
+        <div class="panel">
+            <h2>Orderbook</h2>
+            <div id="metrics"></div>
+            <h3 style="color:#4caf50;margin:10px 0 5px;font-size:0.85em;">Bids</h3>
+            <table id="bids"><thead><tr><th>Price</th><th>Size</th><th>Accum</th><th>Orders</th></tr></thead><tbody></tbody></table>
+            <h3 style="color:#f44336;margin:10px 0 5px;font-size:0.85em;">Offers</h3>
+            <table id="offers"><thead><tr><th>Price</th><th>Size</th><th>Accum</th><th>Orders</th></tr></thead><tbody></tbody></table>
+        </div>
+        <div class="panel">
+            <h2>Message Log</h2>
+            <div id="log" class="log"></div>
+        </div>
+    </div>
+
+    <script>
+        let ws = null;
+        let offerings = [];
+
+        function connect() {
+            const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+            ws = new WebSocket(protocol + '//' + location.host + '/ws');
+
+            ws.onopen = () => {
+                document.getElementById('status').className = 'status connected';
+                document.getElementById('status').textContent = 'Connected';
+                addLog('system', 'Connected to WebSocket');
+            };
+
+            ws.onclose = () => {
+                document.getElementById('status').className = 'status disconnected';
+                document.getElementById('status').textContent = 'Disconnected';
+                addLog('system', 'Disconnected');
+                setTimeout(connect, 3000);
+            };
+
+            ws.onmessage = (event) => {
+                const data = JSON.parse(event.data);
+                addLog(data.type, JSON.stringify(data).substring(0, 200));
+
+                if (data.type === 'snapshot') {
+                    if (data.offerings) {
+                        offerings = data.offerings;
+                        updateSymbolSelect();
+                    }
+                } else if (data.type === 'offering_update') {
+                    addLog('offering', 'Offering updated: ' + (data.symbol || ''));
+                } else if (data.type === 'orderbook_update') {
+                    updateOrderbook(data);
+                }
+            };
+        }
+
+        function disconnect() {
+            if (ws) ws.close();
+        }
+
+        function addLog(type, message) {
+            const log = document.getElementById('log');
+            const time = new Date().toLocaleTimeString();
+            log.innerHTML = '<div class="log-entry"><span class="time">' + time + '</span> <span class="type">[' + type + ']</span> ' + message + '</div>' + log.innerHTML;
+            if (log.children.length > 100) log.removeChild(log.lastChild);
+        }
+
+        async function fetchSnapshot() {
+            try {
+                const res = await fetch('/api/public/snapshot');
+                const data = await res.json();
+                offerings = data.offerings || [];
+                updateSymbolSelect();
+                addLog('snapshot', 'Fetched ' + offerings.length + ' offerings');
+            } catch(e) {
+                addLog('error', e.message);
+            }
+        }
+
+        function updateSymbolSelect() {
+            const select = document.getElementById('symbolSelect');
+            select.innerHTML = '<option value="">Select Symbol...</option>';
+            for (const o of offerings) {
+                select.innerHTML += '<option value="' + o.symbol + '">' + o.symbol + ' - ' + o.name + '</option>';
+            }
+        }
+
+        async function selectSymbol() {
+            const symbol = document.getElementById('symbolSelect').value;
+            if (!symbol) return;
+
+            try {
+                const res = await fetch('/api/orderbook/' + symbol);
+                const data = await res.json();
+                updateOrderbook(data);
+            } catch(e) {
+                addLog('error', e.message);
+            }
+        }
+
+        function updateOrderbook(data) {
+            // Metrics
+            const metrics = document.getElementById('metrics');
+            metrics.innerHTML = '';
+            const metricData = [
+                ['Clearing Price', data.clearingPrice],
+                ['Cprice', data.cprice],
+                ['aVWAP', data.aVWAP],
+                ['rVWAP', data.rVWAP],
+                ['Subscription', data.subscriptionRatio ? (data.subscriptionRatio * 100).toFixed(1) + '%' : '-'],
+            ];
+            for (const [label, value] of metricData) {
+                metrics.innerHTML += '<div class="metric"><span class="label">' + label + '</span><span class="value">' + (value != null ? Number(value).toFixed(4) : '-') + '</span></div>';
+            }
+
+            // Bids
+            const bidBody = document.querySelector('#bids tbody');
+            bidBody.innerHTML = '';
+            for (const e of (data.bidEntries || [])) {
+                bidBody.innerHTML += '<tr class="bid"><td>' + e.price.toFixed(4) + '</td><td>' + e.accumulatedSize + '</td><td>' + e.totalAccumulatedSize + '</td><td>' + e.orderCount + '</td></tr>';
+            }
+
+            // Offers
+            const offerBody = document.querySelector('#offers tbody');
+            offerBody.innerHTML = '';
+            for (const e of (data.offerEntries || [])) {
+                offerBody.innerHTML += '<tr class="offer"><td>' + e.price.toFixed(4) + '</td><td>' + e.accumulatedSize + '</td><td>' + e.totalAccumulatedSize + '</td><td>' + e.orderCount + '</td></tr>';
+            }
+        }
+
+        // Auto-connect
+        connect();
+        fetchSnapshot();
+    </script>
+</body>
+</html>

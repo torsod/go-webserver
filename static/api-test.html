@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PDP API Tester</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: monospace; background: #1a1a1a; color: #e0e0e0; padding: 20px; }
+        h1 { color: #00ccff; margin-bottom: 20px; }
+        .controls { display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; }
+        button { background: #2d2d2d; color: #00ccff; border: 1px solid #404040; padding: 8px 16px; cursor: pointer; border-radius: 4px; font-family: monospace; }
+        button:hover { background: #404040; }
+        button.active { border-color: #00ccff; background: #003344; }
+        input { background: #2d2d2d; color: #e0e0e0; border: 1px solid #404040; padding: 8px 12px; font-family: monospace; border-radius: 4px; width: 200px; }
+        .request-info { background: #2d2d2d; padding: 10px; border-radius: 4px; margin-bottom: 10px; font-size: 0.85em; color: #888; }
+        .request-info span { color: #00ccff; }
+        pre { background: #2d2d2d; padding: 15px; border-radius: 8px; overflow-x: auto; max-height: 600px; overflow-y: auto; white-space: pre-wrap; line-height: 1.4; }
+        .error { color: #f44336; }
+        .success { color: #4caf50; }
+        .section { margin-bottom: 30px; }
+        h2 { color: #888; font-size: 1em; margin-bottom: 10px; text-transform: uppercase; letter-spacing: 1px; }
+    </style>
+</head>
+<body>
+    <h1>PDP API Tester</h1>
+
+    <div class="section">
+        <h2>Read Endpoints</h2>
+        <div class="controls">
+            <button onclick="fetchAPI('/api/health')">Health</button>
+            <button onclick="fetchAPI('/api/offerings')">Offerings</button>
+            <button onclick="fetchAPI('/api/orders')">Orders</button>
+            <button onclick="fetchAPI('/api/settings')">Settings</button>
+            <button onclick="fetchAPI('/api/users')">Users</button>
+            <button onclick="fetchAPI('/api/allocation/sessions')">Allocation Sessions</button>
+        </div>
+    </div>
+
+    <div class="section">
+        <h2>By Symbol</h2>
+        <div class="controls">
+            <input type="text" id="symbol" placeholder="Symbol (e.g., NEWIPO)" value="NEWIPO">
+            <button onclick="fetchAPI('/api/orders/symbol/' + sym())">Orders</button>
+            <button onclick="fetchAPI('/api/orderbook/' + sym())">Orderbook</button>
+            <button onclick="fetchAPI('/api/cprice/' + sym())">Cprice</button>
+            <button onclick="fetchAPI('/api/trades/' + sym())">Trades</button>
+            <button onclick="fetchAPI('/api/public/offering/' + sym())">Public Offering</button>
+        </div>
+    </div>
+
+    <div class="section">
+        <h2>Public API</h2>
+        <div class="controls">
+            <button onclick="fetchAPI('/api/public/offerings')">Public Offerings</button>
+            <button onclick="fetchAPI('/api/public/snapshot')">Snapshot</button>
+        </div>
+    </div>
+
+    <div id="request-info" class="request-info" style="display:none;"></div>
+    <pre id="output">Click a button to fetch data...</pre>
+
+    <script>
+        function sym() { return document.getElementById('symbol').value || 'NEWIPO'; }
+
+        let lastEtag = null;
+
+        async function fetchAPI(url) {
+            const info = document.getElementById('request-info');
+            const output = document.getElementById('output');
+
+            info.style.display = 'block';
+            info.innerHTML = '<span>GET</span> ' + url;
+            output.textContent = 'Loading...';
+
+            try {
+                const headers = {};
+                if (lastEtag) headers['If-None-Match'] = lastEtag;
+
+                const res = await fetch(url, { headers });
+
+                const etag = res.headers.get('ETag');
+                if (etag) lastEtag = etag;
+
+                info.innerHTML = '<span>GET</span> ' + url +
+                    ' | Status: <span class="' + (res.ok ? 'success' : 'error') + '">' + res.status + '</span>' +
+                    (etag ? ' | ETag: ' + etag : '');
+
+                if (res.status === 304) {
+                    output.textContent = '304 Not Modified (cached)';
+                    return;
+                }
+
+                const data = await res.json();
+                output.textContent = JSON.stringify(data, null, 2);
+            } catch (err) {
+                output.innerHTML = '<span class="error">Error: ' + err.message + '</span>';
+            }
+        }
+    </script>
+</body>
+</html>

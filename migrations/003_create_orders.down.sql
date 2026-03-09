@@ -1,0 +1,2 @@
+DROP TABLE IF EXISTS orders;
+DROP SEQUENCE IF EXISTS order_sequence_seq;

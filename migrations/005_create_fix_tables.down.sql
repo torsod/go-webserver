@@ -1,0 +1,3 @@
+DROP TABLE IF EXISTS fix_logs;
+DROP TABLE IF EXISTS fix_orders;
+DROP TABLE IF EXISTS fix_sessions;

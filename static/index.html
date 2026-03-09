@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PDP Go Webserver</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, monospace; background: #1a1a1a; color: #e0e0e0; min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+        .container { max-width: 600px; padding: 40px; }
+        h1 { color: #00ccff; font-size: 2em; margin-bottom: 10px; }
+        .subtitle { color: #888; margin-bottom: 30px; }
+        .links { display: flex; flex-direction: column; gap: 12px; }
+        a { color: #00ccff; text-decoration: none; padding: 12px 20px; border: 1px solid #404040; border-radius: 8px; transition: all 0.2s; }
+        a:hover { background: #2d2d2d; border-color: #00ccff; }
+        .status { margin-top: 30px; padding: 10px; color: #666; font-size: 0.85em; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>PDP Go Webserver</h1>
+        <p class="subtitle">IPO Price Discovery Platform API</p>
+        <div class="links">
+            <a href="/api">API Documentation</a>
+            <a href="/api/health">Health Check</a>
+            <a href="/static/api-test.html">REST API Tester</a>
+            <a href="/static/api-client.html">WebSocket Client</a>
+            <a href="/api/offerings">Offerings</a>
+            <a href="/api/orders">Orders</a>
+            <a href="/api/settings">Settings</a>
+            <a href="/api/users">Users</a>
+        </div>
+        <div class="status" id="status">Checking server...</div>
+    </div>
+    <script>
+        fetch('/api/health').then(r => r.json()).then(d => {
+            document.getElementById('status').textContent = 'Server: ' + d.status + ' | Uptime: ' + d.uptime;
+            document.getElementById('status').style.color = '#4caf50';
+        }).catch(() => {
+            document.getElementById('status').textContent = 'Server unreachable';
+            document.getElementById('status').style.color = '#f44336';
+        });
+    </script>
+</body>
+</html>

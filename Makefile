@@ -1,4 +1,4 @@
-.PHONY: build run seed test clean migrate docker
+.PHONY: build run seed seed-data test clean migrate docker
 
 # Default target
 all: build
@@ -7,6 +7,7 @@ all: build
 build:
 	go build -o bin/server ./cmd/server
 	go build -o bin/seed ./cmd/seed
+	go build -o bin/seed-data ./cmd/seed-data
 
 # Run the server
 run:
@@ -15,6 +16,10 @@ run:
 # Seed default users
 seed:
 	go run ./cmd/seed
+
+# Seed sample offerings and orders
+seed-data:
+	go run ./cmd/seed-data
 
 # Run tests
 test:

@@ -1,6 +1,9 @@
 {
   "context": [
     "context-files/CBFIXtrade4-2v1-5.md",
-    "context-files/CBFIXmarketData4-2v1-5.md"
+    "context-files/CBFIXmarketData4-2v1-5.md",
+    "CBPDPGen2v20r06.md",
+    "PDPGen2–NaturalLanguageSpec.md",
+    "PDPGen2–Scenarios.md"
   ]
 }

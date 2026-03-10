@@ -12,6 +12,7 @@ type Config struct {
 	PublicAPIPort int
 	DatabaseURL   string
 	JWTSecret     string
+	FIXSimulated  bool
 }
 
 // Load reads configuration from environment variables with defaults
@@ -21,6 +22,7 @@ func Load() *Config {
 		PublicAPIPort: getEnvInt("PUBLIC_API_PORT", 0),
 		DatabaseURL:   getEnvStr("DATABASE_URL", "postgres://localhost:5432/go_webserver?sslmode=disable"),
 		JWTSecret:     getEnvStr("JWT_SECRET", "dev-secret-change-in-production"),
+		FIXSimulated:  getEnvBool("FIX_SIMULATED", true),
 	}
 }
 
@@ -41,6 +43,13 @@ func getEnvInt(key string, fallback int) int {
 		if i, err := strconv.Atoi(v); err == nil {
 			return i
 		}
+	}
+	return fallback
+}
+
+func getEnvBool(key string, fallback bool) bool {
+	if v := os.Getenv(key); v != "" {
+		return v == "true" || v == "1"
 	}
 	return fallback
 }

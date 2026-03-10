@@ -76,10 +76,14 @@ type FIXSessionStore interface {
 type FIXOrderStore interface {
 	Insert(ctx context.Context, order *domain.FIXOrder) (string, error)
 	FindBySessionID(ctx context.Context, sessionID string) ([]*domain.FIXOrder, error)
+	FindByClOrdID(ctx context.Context, clOrdID string) (*domain.FIXOrder, error)
+	UpdateFields(ctx context.Context, id string, fields map[string]interface{}) error
 }
 
 // FIXLogStore defines the data access interface for FIX logs
 type FIXLogStore interface {
 	Insert(ctx context.Context, log *domain.FIXLog) (string, error)
 	DeleteOlderThan(ctx context.Context, days int) (int64, error)
+	FindBySessionID(ctx context.Context, sessionID string, limit int) ([]*domain.FIXLog, error)
+	DeleteBySessionID(ctx context.Context, sessionID string) (int64, error)
 }

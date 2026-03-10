@@ -92,6 +92,26 @@ func (s *fixOrderStore) Insert(ctx context.Context, order *domain.FIXOrder) (str
 	return id, nil
 }
 
+func (s *fixOrderStore) FindByClOrdID(ctx context.Context, clOrdID string) (*domain.FIXOrder, error) {
+	fo := &domain.FIXOrder{}
+	err := s.pool.QueryRow(ctx, `
+		SELECT id, cl_ord_id, session_id, symbol, side, quantity, price,
+			ord_type, time_in_force, account, main_order_id, status, transact_time, created_at
+		FROM fix_orders WHERE cl_ord_id = $1`, clOrdID).Scan(
+		&fo.ID, &fo.ClOrdID, &fo.SessionID, &fo.Symbol, &fo.Side, &fo.Quantity, &fo.Price,
+		&fo.OrdType, &fo.TimeInForce, &fo.Account, &fo.MainOrderID, &fo.Status,
+		&fo.TransactTime, &fo.CreatedAt,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("find fix order by clOrdId: %w", err)
+	}
+	return fo, nil
+}
+
+func (s *fixOrderStore) UpdateFields(ctx context.Context, id string, fields map[string]interface{}) error {
+	return updateFields(ctx, s.pool, "fix_orders", id, fields)
+}
+
 func (s *fixOrderStore) FindBySessionID(ctx context.Context, sessionID string) ([]*domain.FIXOrder, error) {
 	rows, err := s.pool.Query(ctx, `
 		SELECT id, cl_ord_id, session_id, symbol, side, quantity, price,
@@ -146,6 +166,40 @@ func (s *fixLogStore) DeleteOlderThan(ctx context.Context, days int) (int64, err
 		`DELETE FROM fix_logs WHERE "timestamp" < NOW() - INTERVAL '1 day' * $1`, days)
 	if err != nil {
 		return 0, fmt.Errorf("delete old fix logs: %w", err)
+	}
+	return tag.RowsAffected(), nil
+}
+
+func (s *fixLogStore) FindBySessionID(ctx context.Context, sessionID string, limit int) ([]*domain.FIXLog, error) {
+	rows, err := s.pool.Query(ctx, `
+		SELECT id, session_id, "timestamp", level, message, direction, raw_data
+		FROM fix_logs WHERE session_id = $1
+		ORDER BY "timestamp" DESC LIMIT $2`, sessionID, limit)
+	if err != nil {
+		return nil, fmt.Errorf("query fix logs: %w", err)
+	}
+	defer rows.Close()
+
+	var logs []*domain.FIXLog
+	for rows.Next() {
+		fl := &domain.FIXLog{}
+		err := rows.Scan(
+			&fl.ID, &fl.SessionID, &fl.Timestamp, &fl.Level, &fl.Message,
+			&fl.Direction, &fl.RawData,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("scan fix log: %w", err)
+		}
+		logs = append(logs, fl)
+	}
+	return logs, nil
+}
+
+func (s *fixLogStore) DeleteBySessionID(ctx context.Context, sessionID string) (int64, error) {
+	tag, err := s.pool.Exec(ctx,
+		`DELETE FROM fix_logs WHERE session_id = $1`, sessionID)
+	if err != nil {
+		return 0, fmt.Errorf("delete fix logs by session: %w", err)
 	}
 	return tag.RowsAffected(), nil
 }

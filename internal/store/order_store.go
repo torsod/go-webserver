@@ -156,12 +156,6 @@ func (s *orderStore) FindForAllocation(ctx context.Context, symbol string, minPr
 func (s *orderStore) Insert(ctx context.Context, order *domain.Order) (string, error) {
 	modHistJSON, _ := json.Marshal(order.ModificationHistory)
 
-	// Convert empty string to nil for UUID columns
-	var allocationSessionID interface{}
-	if order.AllocationSessionID != "" {
-		allocationSessionID = order.AllocationSessionID
-	}
-
 	var id string
 	err := s.pool.QueryRow(ctx, `
 		INSERT INTO orders (
@@ -181,7 +175,7 @@ func (s *orderStore) Insert(ctx context.Context, order *domain.Order) (string, e
 		order.UserID, order.BDFirmID, order.EnteredBy, order.Status,
 		order.SeasoningExpiresAt, order.TimeWindowAtEntry,
 		order.HaltReason, order.HaltedAt, order.PreHaltTimestamp,
-		order.AllocatedQuantity, allocationSessionID,
+		order.AllocatedQuantity, order.AllocationSessionID,
 		order.CanceledAt, order.CancelReason,
 		order.CreatedAt, order.UpdatedAt, modHistJSON,
 	).Scan(&id)
@@ -193,12 +187,6 @@ func (s *orderStore) Insert(ctx context.Context, order *domain.Order) (string, e
 
 func (s *orderStore) Update(ctx context.Context, id string, order *domain.Order) error {
 	modHistJSON, _ := json.Marshal(order.ModificationHistory)
-
-	// Convert empty string to nil for UUID columns
-	var allocationSessionID interface{}
-	if order.AllocationSessionID != "" {
-		allocationSessionID = order.AllocationSessionID
-	}
 
 	_, err := s.pool.Exec(ctx, `
 		UPDATE orders SET
@@ -214,7 +202,7 @@ func (s *orderStore) Update(ctx context.Context, id string, order *domain.Order)
 		order.Timestamp, order.PriorityGroup,
 		order.SeasoningExpiresAt, order.TimeWindowAtEntry,
 		order.HaltReason, order.HaltedAt, order.PreHaltTimestamp,
-		order.AllocatedQuantity, allocationSessionID,
+		order.AllocatedQuantity, order.AllocationSessionID,
 		order.CanceledAt, order.CancelReason,
 		modHistJSON, id,
 	)

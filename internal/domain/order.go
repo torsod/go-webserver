@@ -93,7 +93,7 @@ type Order struct {
 
 	// Allocation results (populated after allocation)
 	AllocatedQuantity   *int64  `json:"allocatedQuantity,omitempty" db:"allocated_quantity"`
-	AllocationSessionID string  `json:"allocationSessionId,omitempty" db:"allocation_session_id"`
+	AllocationSessionID *string `json:"allocationSessionId,omitempty" db:"allocation_session_id"`
 
 	// Cancellation
 	CanceledAt   *time.Time `json:"canceledAt,omitempty" db:"canceled_at"`

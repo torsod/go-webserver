@@ -186,7 +186,7 @@ func (s *AllocationService) Bust(ctx context.Context, sessionID string) error {
 	// Reset order allocations
 	orders, _ := s.orders.FindAll(ctx)
 	for _, o := range orders {
-		if o.AllocationSessionID == sessionID {
+		if o.AllocationSessionID != nil && *o.AllocationSessionID == sessionID {
 			s.orders.UpdateFields(ctx, o.ID, map[string]interface{}{
 				"allocated_quantity":    nil,
 				"allocation_session_id": nil,
